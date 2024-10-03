@@ -326,6 +326,7 @@ dependencies = [
 name = "gtk-browse"
 version = "0.1.0"
 dependencies = [
+ "gdk4",
  "gtk4",
  "webkit6",
 ]

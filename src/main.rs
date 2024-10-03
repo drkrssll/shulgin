@@ -1,23 +1,23 @@
-use gtk4::glib::ExitCode;
-use gtk4::{prelude::*, Align, Entry, Overlay};
-use gtk4::{Application, ApplicationWindow};
+use gdk4::glib::ExitCode;
+use gtk4::prelude::*;
+use gtk4::{Application, ApplicationWindow, Box, Button, Dialog, Entry, Orientation};
 use webkit6::prelude::WebViewExt;
 use webkit6::WebView;
 
 fn main() -> ExitCode {
     let app = Application::builder()
-        .application_id("org.gtk.browse")
+        .application_id("com.example.webview")
         .build();
 
-    app.connect_activate(app_window);
+    app.connect_activate(build_ui);
 
     app.run()
 }
 
-fn app_window(app: &Application) {
+fn build_ui(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
-        .title("Google Render")
+        .title("Google Web Render")
         .default_width(800)
         .default_height(600)
         .build();
@@ -25,36 +25,56 @@ fn app_window(app: &Application) {
     let webview = WebView::new();
     webview.load_uri("https://www.google.com");
 
-    let overlay = Overlay::new();
-
+    let overlay = gtk4::Overlay::new();
     overlay.set_child(Some(&webview));
 
-    let menu = Entry::new();
+    let toggle_button = Button::with_label("Toggle Menu");
+    overlay.add_overlay(&toggle_button);
+    toggle_button.set_halign(gtk4::Align::End);
+    toggle_button.set_valign(gtk4::Align::End);
 
-    menu.set_placeholder_text(Some("Enter URL"));
-    menu.set_visible(false);
+    let dialog = Dialog::new();
+    dialog.set_transient_for(Some(&window));
+    dialog.set_title(Some("Enter URL"));
 
-    overlay.add_overlay(&menu);
-    menu.set_halign(Align::Center);
-    menu.set_valign(Align::Center);
+    let content_area = dialog.content_area();
+    let dialog_box = Box::new(Orientation::Vertical, 5);
+    content_area.append(&dialog_box);
 
-    let webview_clone = webview.clone();
-    menu.connect_activate(move |url| {
-        let mut url_text = url.text().to_string();
+    let url_entry = Entry::new();
+    url_entry.set_placeholder_text(Some(""));
+    dialog_box.append(&url_entry);
 
-        if !url_text.starts_with("http://") && !url_text.starts_with("https://") {
-            url_text = format!("https://{}", url_text);
+    url_entry.connect_activate({
+        let dialog = dialog.clone();
+        let webview = webview.clone();
+        move |entry| {
+            let url = entry.text();
+            if !url.is_empty() {
+                let url_to_load = if url.starts_with("http://") {
+                    url.to_string()
+                } else {
+                    format!("https://{}", url)
+                };
+                webview.load_uri(&url_to_load);
+            }
+
+            entry.set_text("");
+            dialog.hide();
         }
+    });
 
-        if !url_text.is_empty() {
-            webview_clone.load_uri(&url_text);
-
-            url.set_text("");
-            url.set_placeholder_text(Some("Enter URL"));
+    toggle_button.connect_clicked({
+        let dialog = dialog.clone();
+        move |_| {
+            if !dialog.is_visible() {
+                dialog.show()
+            } else {
+                dialog.hide()
+            }
         }
     });
 
     window.set_child(Some(&overlay));
-
     window.present();
 }
